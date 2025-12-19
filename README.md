@@ -21,7 +21,7 @@ This project transitions from traditional per-packet analysis to a robust **beha
 - **Abdelrhman Walid Morsy**
 - **Abdelrhman Moustafa Attia Ahmed**
 - **Abdelrhman Saad Edris**
-- **Abdelrhman Samy Abdelhamed**
+- **Abdelrhman Samy Abdelhamid**
 
 ---
 
