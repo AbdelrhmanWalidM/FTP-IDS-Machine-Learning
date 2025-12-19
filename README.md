@@ -31,7 +31,6 @@ This project transitions from traditional per-packet analysis to a robust **beha
 /
 ├── data/               # Raw PCAPNG captures and processed CSV datasets
 ├── docs/               # Technical reports (LaTeX), walkthroughs, and guides
-├── notebooks/          # Jupyter notebooks for data exploration
 ├── scripts/            # Python and PowerShell scripts for data preprocessing
 ├── src/                # Core ML models, training scripts, and live IDS daemon
 ├── README.md           # Project documentation
