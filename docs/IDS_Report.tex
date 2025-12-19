@@ -1,0 +1,198 @@
+\documentclass[11pt,a4paper]{article}
+
+% --- Packages ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{color}
+
+% --- Listing Style ---
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\small,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+% --- Cover Page ---
+\title{
+    \vspace{2in}
+    \textbf{\Large Network Security Project} \\
+    \Huge \textbf{FTP Intrusion Detection System} \\
+    \Large \textit{Detecting Dictionary Attacks using Time-Window Behavioral Analysis}
+    \vspace{1in}
+}
+\author{
+    \textbf{Team Members:} \\
+    Abdelrhman Walid Morsy \\
+    Abdelrhman Moustafa Attia \\
+    Abdelrhman Saad Edris \\
+    Abdelrhman Samy Abdelhamed
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\newpage
+
+\tableofcontents
+\newpage
+
+\section{Introduction to the Attack}
+The File Transfer Protocol (FTP) is a standard network protocol used for the transfer of computer files between a client and server. Despite its utility, FTP is inherently vulnerable as it transmits credentials in plaintext. One of the most common threats is the \textbf{Dictionary Attack}, a form of brute-force attack where an adversary systematically attempts to gain unauthorized access by testing a vast list of passwords against known usernames. 
+
+The objective of this project is to develop a Machine Learning (ML) based IDS that goes beyond simple signature matching. By analyzing network traffic patterns and aggregating them into time windows, the system identifies the behavioral "fingerprints" of automated attack scripts.
+
+\section{Lab Setup and Topology}
+To simulate a realistic attack environment while ensuring safety, we utilized a virtualized network topology:
+\begin{itemize}
+    \item \textbf{Attacker Machine:} Kali Linux (Tools: Nmap, Metasploit, Scapy, Tshark).
+    \item \textbf{Victim Machine:} Metasploitable 2 (Target Service: FTP Server on Port 21).
+    \item \textbf{Network:} Isolated NAT Network to contain malicious traffic.
+\end{itemize}
+
+\section{Attack Execution Steps and Labeling}
+The attack was executed in three distinct phases to ensure a balanced dataset.
+
+\subsection{Phase 1: Reconnaissance}
+We used \texttt{Nmap} to identify the target IP and verify that Port 21 was open.
+\begin{lstlisting}[language=bash, caption=Nmap Scan Command]
+nmap -sV -p 21 10.0.3.7
+\end{lstlisting}
+
+\subsection{Phase 2: Generating Benign Traffic (Label 0)}
+To capture normal behavior, we manually established FTP connections and executed standard commands such as \texttt{ls}, \texttt{cd}, \texttt{pwd}, and file transfers. 
+\begin{lstlisting}[language=bash, caption=Benign Simulation Command]
+ftp 10.0.3.7
+# After login:
+ls
+cd Desktop
+get project.txt
+\end{lstlisting}
+This traffic was labeled as \textbf{Label 0}.
+% use auxiliary/scanner/ftp/ftp_login
+% set RHOSTS 10.0.3.7
+% set USERPASS_FILE /usr/share/wordlists/metasploit/ftp-passwords.txt
+% run
+\subsection{Phase 3: Attack Execution (Label 1)}
+We used the Metasploit Framework to automate a high-volume dictionary attack.
+\begin{lstlisting}[language=bash, caption=Metasploit Dictionary Attack Setup]
+use auxiliary/scanner/ftp/ftp_login 
+
+set rhosts 10.0.3.7 
+
+set rport 21 
+
+# Dictionary attack inputs 
+
+set USERPASS_FILE /root/../../home/kali/Downloads/ftp-passwords.txt 
+
+set stop_on_success true 
+
+set verbose true 
+
+run 
+\end{lstlisting}
+Traffic containing these repeated login attempts and subsequent "black hat" activities (unauthorized file modifications) was captured and labeled as \textbf{Label 1}.
+
+\begin{lstlisting}[language=bash, caption=Post-Exploitation Malicious Commands]
+# After successful brute-force entry:
+get /etc/passwd      # Attempting to steal user credentials
+get /etc/hosts       # Reconnaissance of the local network
+put malicious.exe    # Uploading malware or backdoors
+mkdir .hidden        # Creating a hidden directory for persistence
+rm -rf /var/log      # Covering tracks by deleting logs
+\end{lstlisting}
+
+\section{Dataset Creation and Record Counts}
+The raw traffic was captured in PCAPNG format and processed into CSV. 
+\begin{itemize}
+    \item \textbf{Raw Dataset:} 13,244 packet rows.
+    \item \textbf{Processed Dataset:} After applying the time-windowing logic (1-second intervals), the dataset was reduced to \textbf{1,554 time windows}.
+\end{itemize}
+The reduction significantly improved the signal-to-noise ratio, as single packets were transformed into behavioral summaries.
+
+\section{Feature Engineering and Selection}
+\subsection{Feature Descriptions}
+We extracted the following features for each time window:
+\begin{itemize}
+    \item \textbf{packet\_count:} Total packets in the window (indicates volume).
+    \item \textbf{byte\_sum:} Total bytes transferred (indicates data mass).
+    \item \textbf{byte\_mean:} Average packet size (indicates packet type distribution).
+    \item \textbf{failed\_login\_count:} Frequency of FTP \textbf{530} responses (the primary signature of brute-force).
+\end{itemize}
+
+\subsection{Feature Selection Method}
+Features were selected based on their correlation with attack labels. The \textbf{failed\_login\_count} and \textbf{packet\_count} showed the highest variance between normal and malicious windows, making them the most predictive variables.
+
+\section{Machine Learning Models}
+We implemented and compared two primary models:
+\begin{enumerate}
+    \item \textbf{Random Forest:} An ensemble of decision trees, used for its robustness to outliers and ability to handle non-linear relationships.
+    \item \textbf{Logistic Regression:} A linear model used as a baseline. Surprisingly, for the windowed feature set, Logistic Regression achieved near-perfect accuracy due to the clear statistical separation between classes.
+\end{enumerate}
+
+\section{Evaluation Metrics and Comparison}
+The model was evaluated on a test split of 467 windows.
+
+\begin{table}[H]
+    \centering
+    \caption{Window-Based Classification Report}
+    \begin{tabular}{lcccc}
+        \toprule
+        \textbf{Class} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} & \textbf{Support} \\
+        \midrule
+        Benign & 1.00 & 1.00 & 1.00 & 312 \\
+        Attack & 1.00 & 1.00 & 1.00 & 155 \\
+        \midrule
+        \textbf{Accuracy} & \multicolumn{4}{c}{\textbf{1.00}} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Figure_1.png}
+    \caption{Confusion Matrix representing perfect class separation.}
+    \label{fig:confusion_matrix}
+\end{figure}
+
+\section{Conclusion and Future Work}
+Successfully implementing a window-based IDS has proven that behavioral analysis is superior to packet-level inspection for protocols like FTP. The model achieved 100\% accuracy by identifying the statistical bursts associated with dictionary attacks.
+
+\textbf{Future Work:}
+\begin{itemize}
+    \item \textbf{Deployment:} Continuous monitoring on live traffic using a daemon script.
+    \item \textbf{Multi-Class Detection:} Differentiating between brute-force and post-exploitation (data theft).
+    \item \textbf{Scaling:} Testing the model on more complex network topologies with background noise.
+\end{itemize}
+
+\end{document}
